@@ -1,0 +1,90 @@
+package com.example.UserOrderManagement.Service;
+
+import com.example.UserOrderManagement.DTO.OrderResponseDTO;
+import com.example.UserOrderManagement.DTO.UserRequestDTO;
+import com.example.UserOrderManagement.DTO.UserResponseDTO;
+import com.example.UserOrderManagement.DTO.UserSummaryDTO;
+import com.example.UserOrderManagement.Entity.Order;
+import com.example.UserOrderManagement.Entity.User;
+import com.example.UserOrderManagement.Exception.ResourceNotFoundException;
+import com.example.UserOrderManagement.Repository.UserRepository;
+import org.springframework.transaction.annotation.Transactional;
+import org.springframework.stereotype.Service;
+
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Optional;
+
+@Service
+public class UserService {
+    private final UserRepository userRepository;
+
+    public UserService(UserRepository userRepository) {
+        this.userRepository = userRepository;
+    }
+    @Transactional
+    public UserResponseDTO createUser(UserRequestDTO userRequestDTO){
+        User createUser = new User();
+        createUser.setEmail(userRequestDTO.email());
+        createUser.setName(userRequestDTO.name());
+        User savedUser = userRepository.save(createUser);
+        return new UserResponseDTO(savedUser.getId(),
+                savedUser.getName(), savedUser.getEmail(), List.of());
+    }
+    @Transactional(readOnly = true)
+    public UserResponseDTO getUserWithOrders(Long id){
+        Optional<User> checkUser = userRepository.findById(id);
+        if(checkUser.isEmpty()){
+            throw new ResourceNotFoundException("Cannot find user with ID: "+id);
+        }
+        User user = checkUser.get();
+        List<Order> orders = user.getOrders();
+        List<OrderResponseDTO> orderResponseDTOS = new ArrayList<>();
+        for(Order order:orders){
+            OrderResponseDTO orderResponseDTO = new OrderResponseDTO(order.getId(),
+                    order.getOrderNumber(),
+                    order.getAmount());
+            orderResponseDTOS.add(orderResponseDTO);
+        }
+        return new UserResponseDTO(user.getId(),
+                user.getName(),
+                user.getEmail(),
+                orderResponseDTOS);
+    }
+    @Transactional(readOnly = true)
+    public List<UserSummaryDTO> getAllUsers(){
+        List<User> allUsers = userRepository.findAll();
+        List<UserSummaryDTO> userSummaryDTOS = new ArrayList<>();
+        for (User user:allUsers){
+            UserSummaryDTO userSummaryDTO = new UserSummaryDTO(user.getId(),
+                    user.getName(),
+                    user.getEmail());
+            userSummaryDTOS.add(userSummaryDTO);
+        }
+        return userSummaryDTOS;
+    }
+    @Transactional
+    public void deleteUserById(Long id){
+        Optional<User> checkUser = userRepository.findById(id);
+        if(checkUser.isEmpty()){
+            throw new ResourceNotFoundException("User is not found with id: " + id);
+        }
+        userRepository.deleteById(id);
+    }
+    @Transactional
+    public UserResponseDTO updateUserById(UserRequestDTO userRequestDTO, Long id){
+        Optional<User> checkUser = userRepository.findById(id);
+        if(checkUser.isEmpty()){
+            throw new ResourceNotFoundException("User is not found with id: " + id);
+        }
+        User user = checkUser.get();
+        user.setName(userRequestDTO.name());
+        user.setName(userRequestDTO.email());
+        User updatedUser = userRepository.save(user);
+
+        return new UserResponseDTO(updatedUser.getId(),
+                updatedUser.getName(),
+                updatedUser.getEmail(),
+                List.of());
+    }
+}

@@ -38,7 +38,7 @@ public class UserRestController {
         UserResponseDTO userResponseDTO = userService.updateUserById(userRequestDTO,id);
         return ResponseEntity.ok(userResponseDTO);
     }
-    @DeleteMapping
+    @DeleteMapping("/{id}")
     public void deleteUserById(@PathVariable Long id){
         userService.deleteUserById(id);
     }

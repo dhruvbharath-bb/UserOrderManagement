@@ -8,6 +8,8 @@ import com.example.UserOrderManagement.Entity.Order;
 import com.example.UserOrderManagement.Entity.User;
 import com.example.UserOrderManagement.Exception.ResourceNotFoundException;
 import com.example.UserOrderManagement.Repository.UserRepository;
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.stereotype.Service;
 
@@ -18,7 +20,6 @@ import java.util.Optional;
 @Service
 public class UserService {
     private final UserRepository userRepository;
-
     public UserService(UserRepository userRepository) {
         this.userRepository = userRepository;
     }
@@ -31,6 +32,7 @@ public class UserService {
         return new UserResponseDTO(savedUser.getId(),
                 savedUser.getName(), savedUser.getEmail(), List.of());
     }
+    @Cacheable(value = "users", key = "#id") //Creates cache with key-value
     @Transactional(readOnly = true)
     public UserResponseDTO getUserWithOrders(Long id){
         Optional<User> checkUser = userRepository.findById(id);
@@ -46,13 +48,15 @@ public class UserService {
                     order.getAmount());
             orderResponseDTOS.add(orderResponseDTO);
         }
+        System.out.println("HITTING DATABASE for user: "+ id); //log
         return new UserResponseDTO(user.getId(),
                 user.getName(),
                 user.getEmail(),
                 orderResponseDTOS);
     }
+
     @Transactional(readOnly = true)
-    public List<UserSummaryDTO> getAllUsers(){
+    public List<UserSummaryDTO> getAllUsers(){ //not cached as it gets all users..
         List<User> allUsers = userRepository.findAll();
         List<UserSummaryDTO> userSummaryDTOS = new ArrayList<>();
         for (User user:allUsers){
@@ -63,20 +67,24 @@ public class UserService {
         }
         return userSummaryDTOS;
     }
+    @CacheEvict(value = "users",key = "#id") //Stale cache is evicted
     @Transactional
     public void deleteUserById(Long id){
         Optional<User> checkUser = userRepository.findById(id);
         if(checkUser.isEmpty()){
             throw new ResourceNotFoundException("User is not found with id: " + id);
         }
+        System.out.println("Cache is evicted with userid: " + id);
         userRepository.deleteById(id);
     }
+    @CacheEvict(value = "users",key = "#id")    //Stale cache is evicted
     @Transactional
     public UserResponseDTO updateUserById(UserRequestDTO userRequestDTO, Long id){
         Optional<User> checkUser = userRepository.findById(id);
         if(checkUser.isEmpty()){
             throw new ResourceNotFoundException("User is not found with id: " + id);
         }
+        System.out.println("Cache is evicted with userid: " + id);
         User user = checkUser.get();
         user.setName(userRequestDTO.name());
         user.setName(userRequestDTO.email());

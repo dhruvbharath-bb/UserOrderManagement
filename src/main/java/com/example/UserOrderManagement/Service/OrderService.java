@@ -4,26 +4,34 @@ import com.example.UserOrderManagement.DTO.OrderRequestDTO;
 import com.example.UserOrderManagement.DTO.OrderResponseDTO;
 import com.example.UserOrderManagement.Entity.Order;
 import com.example.UserOrderManagement.Entity.User;
+import com.example.UserOrderManagement.Events.EventMetadata;
+import com.example.UserOrderManagement.Events.OrderCreatedEvent;
+import com.example.UserOrderManagement.Events.OrderCreatedPayload;
 import com.example.UserOrderManagement.Exception.ResourceNotFoundException;
+import com.example.UserOrderManagement.Kafka.OrderEventProducer;
 import com.example.UserOrderManagement.Repository.OrderRepository;
 import com.example.UserOrderManagement.Repository.UserRepository;
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Cacheable;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
+import java.util.UUID;
 
 @Service
 public class OrderService {
     private OrderRepository orderRepository;
     private UserRepository userRepository;
-
-    public OrderService(OrderRepository orderRepository, UserRepository userRepository){
+    private final ApplicationEventPublisher applicationEventPublisher;
+    public OrderService(OrderRepository orderRepository, UserRepository userRepository, ApplicationEventPublisher applicationEventPublisher){
         this.orderRepository = orderRepository;
         this.userRepository = userRepository;
+        this.applicationEventPublisher = applicationEventPublisher;
     }
     @Cacheable(value="orders", key = "#p0")
     @Transactional(readOnly = true)
@@ -52,12 +60,31 @@ public class OrderService {
         }
         System.out.println("Evicting old cache data");//log
         User user = checkUser.get();
+
+        //Creating new Order with OrderRequestDTO
         Order order = new Order();
         order.setOrderNumber(orderRequestDTO.orderNumber());
         order.setAmount(orderRequestDTO.amount());
         order.setUser(user);
 
+        //Save entity to repo
         Order savedOrder = orderRepository.save(order);
+
+        //Generating a Event
+        EventMetadata eventMetadata = new EventMetadata(UUID.randomUUID(),
+                "OrderCreated",
+                Instant.now(),
+                "order-service",
+                1);
+
+        OrderCreatedPayload orderCreatedPayload = new OrderCreatedPayload(savedOrder.getId(),
+                savedOrder.getUser().getId(),
+                savedOrder.getOrderNumber(),
+                savedOrder.getAmount());
+
+        OrderCreatedEvent orderCreatedEvent = new OrderCreatedEvent(eventMetadata,orderCreatedPayload);
+        applicationEventPublisher.publishEvent(orderCreatedEvent);
+        //Return new OrderDTO
         return new OrderResponseDTO(savedOrder.getId(),
                 savedOrder.getOrderNumber(),
                 savedOrder.getAmount());

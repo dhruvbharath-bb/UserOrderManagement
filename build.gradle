@@ -28,6 +28,15 @@ dependencies {
 	testImplementation 'org.springframework.boot:spring-boot-starter-data-jpa-test'
 	testImplementation 'org.springframework.boot:spring-boot-starter-webmvc-test'
 	testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
+    // Primary dependency for Kafka integration
+    implementation 'org.springframework.boot:spring-boot-starter-kafka'
+
+    // Testing support (includes embedded Kafka broker)
+    testImplementation 'org.springframework.kafka:spring-kafka-test'
+
+    //for jackson json serialization of Instant
+    implementation 'com.fasterxml.jackson.datatype:jackson-datatype-jsr310'
+
 }
 
 tasks.named('test') {

@@ -6,21 +6,29 @@ import com.example.UserOrderManagement.DTO.UserResponseDTO;
 import com.example.UserOrderManagement.DTO.UserSummaryDTO;
 import com.example.UserOrderManagement.Entity.Order;
 import com.example.UserOrderManagement.Entity.User;
+import com.example.UserOrderManagement.Events.EventMetadata;
+import com.example.UserOrderManagement.Events.UserCreatedEvent;
+import com.example.UserOrderManagement.Events.UserCreatedPayload;
 import com.example.UserOrderManagement.Exception.ResourceNotFoundException;
 import com.example.UserOrderManagement.Repository.UserRepository;
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Cacheable;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.stereotype.Service;
 
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
+import java.util.UUID;
 
 @Service
 public class UserService {
+    private final ApplicationEventPublisher applicationEventPublisher;
     private final UserRepository userRepository;
-    public UserService(UserRepository userRepository) {
+    public UserService(ApplicationEventPublisher applicationEventPublisher, UserRepository userRepository) {
+        this.applicationEventPublisher = applicationEventPublisher;
         this.userRepository = userRepository;
     }
     @Transactional
@@ -29,6 +37,19 @@ public class UserService {
         createUser.setEmail(userRequestDTO.email());
         createUser.setName(userRequestDTO.name());
         User savedUser = userRepository.save(createUser);
+
+        //Generating an event
+        EventMetadata eventMetadata = new EventMetadata(UUID.randomUUID(),
+                "UserCreated",
+                Instant.now(),
+                "user-service",
+                1);
+        UserCreatedPayload userCreatedPayload = new UserCreatedPayload(savedUser.getId(),
+                savedUser.getName(),
+                savedUser.getName());
+        applicationEventPublisher.publishEvent(new UserCreatedEvent(eventMetadata,userCreatedPayload));
+
+        //returning DTO
         return new UserResponseDTO(savedUser.getId(),
                 savedUser.getName(), savedUser.getEmail(), List.of());
     }
@@ -48,6 +69,7 @@ public class UserService {
                     order.getAmount());
             orderResponseDTOS.add(orderResponseDTO);
         }
+
         System.out.println("HITTING DATABASE for user: "+ id); //log
         return new UserResponseDTO(user.getId(),
                 user.getName(),

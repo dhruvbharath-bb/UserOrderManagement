@@ -15,25 +15,25 @@ import java.time.Duration;
 public class RedisCacheConfig {
 
     @Bean
-    public RedisCacheManager cacheManager(RedisConnectionFactory connectionFactory) {
+    public RedisCacheManager cacheManager(RedisConnectionFactory connectionFactory) { //Spring injects RedisConnectionFactory automatically to create one RedisCacheManager
 
         RedisCacheConfiguration config =
-                RedisCacheConfiguration.defaultCacheConfig()
+                RedisCacheConfiguration.defaultCacheConfig() //spring default cache config
                         .serializeKeysWith(
                                 RedisSerializationContext.SerializationPair.fromSerializer(
-                                        new StringRedisSerializer()
+                                        new StringRedisSerializer() //Store Cache keys as plain strings
                                 )
-                        )
+                        ) //
                         .serializeValuesWith(
                                 RedisSerializationContext.SerializationPair.fromSerializer(
-                                        RedisSerializer.json()
+                                        RedisSerializer.json() //Convert Java objects to JSON
                                 )
                         )
                         .entryTtl(Duration.ofMinutes(10)); //10 minutes - Time to Live (TTL)
 
         return RedisCacheManager.builder(connectionFactory)
                 .cacheDefaults(config)
-                .build();
+                .build(); //Make redis the default cache manager
     }
 }
 
